@@ -1,12 +1,4 @@
-interface Restaurant {
-  id: string;
-  name: string;
-  image: string;
-  description: string;
-  address: string;
-  score: number;
-  ratings: number;
-}
+import { Restaurant } from "./types";
 
 const restaurants: Restaurant[] = [
   {
@@ -125,12 +117,30 @@ const restaurants: Restaurant[] = [
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const api = {
-  list: async (): Promise<Restaurant[]> => {
+  listStatic: async (): Promise<Restaurant[]> => {
     await sleep(750);
 
     return restaurants;
   },
-  fetch: async (id: Restaurant["id"]): Promise<Restaurant> => {
+  list: async (): Promise<Restaurant[]> => {
+    const [, ...data] = await fetch ('https://docs.google.com/spreadsheets/d/e/2PACX-1vQf3lrPHNY3dHihVl2dnY5xFymhmqkU1g2OTchv_g12IiMYARPhd3IFRyilhDscK47Yh3q5wb6U_tv4/pub?gid=0&single=true&output=csv').then(res => res.text()).then(text => text.split('\n'))
+    // Convertimos cada línea en un objeto Restaurant, asegúrate de que los campos no posean `,`
+    const restaurants: Restaurant[] = data.map((row) => {
+      const [id, name, description, address, score, ratings, image] = row.split(',')
+      return {
+        id,
+        name,
+        description,
+        address,
+        score: Number(score),
+        ratings: Number(ratings),
+        image
+      }
+    })
+    // Lo retornamos
+    return restaurants;
+  },
+  fetchStatic: async (id: Restaurant["id"]): Promise<Restaurant> => {
     await sleep(750);
 
     const restaurant = restaurants.find((restaurant) => restaurant.id === id);
@@ -140,6 +150,47 @@ const api = {
     }
 
     return restaurant;
+  },
+  fetch: async (id: Restaurant["id"]): Promise<Restaurant> => {
+    const [, ...data] = await fetch ('https://docs.google.com/spreadsheets/d/e/2PACX-1vQf3lrPHNY3dHihVl2dnY5xFymhmqkU1g2OTchv_g12IiMYARPhd3IFRyilhDscK47Yh3q5wb6U_tv4/pub?gid=0&single=true&output=csv', { cache: 'no-store' }).then(res => res.text()).then(text => text.split('\n'))
+    // Convertimos cada línea en un objeto Restaurant, asegúrate de que los campos no posean `,`
+    const restaurants: Restaurant[] = data.map((row) => {
+      const [id, name, description, address, score, ratings, image] = row.split(',')
+      return {
+        id,
+        name,
+        description,
+        address,
+        score: Number(score),
+        ratings: Number(ratings),
+        image
+      }
+    })
+    const restaurant = restaurants.find((restaurant) => restaurant.id === id);
+
+    if (!restaurant) {
+      throw new Error(`Restaurant with id ${id} not found`);
+    }
+
+    return restaurant;
+  },
+  search: async (query: string): Promise<Restaurant[]> => {
+
+    // si query está vacío, retornamos todos los restaurantes
+    if (!query) {
+      return api.list();
+    }
+
+    // Obtenemos los restaurantes
+    const results = await api.list().then((restaurants) =>
+      // Los filtramos por nombre
+      restaurants.filter((restaurant) =>
+        restaurant.name.toLowerCase().includes(query.toLowerCase()),
+      ),
+    );
+
+    // Los retornamos
+    return results;
   },
 };
 
